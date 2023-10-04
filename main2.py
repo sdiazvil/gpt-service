@@ -42,22 +42,29 @@ async def completions(websocket: WebSocket):
 
             # Utiliza OpenAI para obtener una respuesta
             prompt = data  # El mensaje del cliente podría servir como el prompt para OpenAI
-            response_generator = openai.Completion.create(
-                model="text-davinci-003",
-                prompt=prompt,
+            response_generator = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                # prompt=prompt,
+                messages=[
+                    {"role": "user", "content": prompt},
+                ],
                 stream=True,
-                max_tokens=100
+                max_tokens=200
             )
 
             for response in response_generator:
-                assistant_response = response.choices[0].text
+                # assistant_response = response["choices"][0]["delta"]["content"]
+                if response["choices"][0]['finish_reason']=='stop':
+                    print('cadena finalizada')
+                else :
+                    assistant_response = response['choices'][0]['delta']['content']
 
-                data = {"message": assistant_response}
+                    data = {"message": assistant_response}
 
-                json_data = json.dumps(data)
-                # Envía la palabra al cliente a través de WebSocket
-                await websocket.send_text(json_data)
+                    json_data = json.dumps(data)
+                    # Envía la palabra al cliente a través de WebSocket
+                    await websocket.send_text(json_data)
+                
 
     except WebSocketDisconnect:
         pass
-    
