@@ -1,10 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, BackgroundTasks
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI
 import openai
-import asyncio
-from pydantic import BaseModel
 import openai
 import os
 from dotenv import load_dotenv
@@ -31,7 +28,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.websocket("/completions")
 async def completions(websocket: WebSocket):
     await websocket.accept()
@@ -53,7 +49,6 @@ async def completions(websocket: WebSocket):
             )
 
             for response in response_generator:
-                # assistant_response = response["choices"][0]["delta"]["content"]
                 if response["choices"][0]['finish_reason']=='stop':
                     print('cadena finalizada')
                 else :
