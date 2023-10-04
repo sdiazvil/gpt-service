@@ -30,11 +30,6 @@ app.add_middleware(
 class CompletionRequest(BaseModel):
     prompt: str
 
-
-class CompletionResponse(BaseModel):
-    content: str
-
-
 @app.post("/completions")
 async def completions(request: CompletionRequest):
     response = openai.ChatCompletion.create(
@@ -43,7 +38,16 @@ async def completions(request: CompletionRequest):
         messages=[
             {"role": "user", "content": request.prompt},
         ],
-        #stream=True,
+        stream=True,
         max_tokens = 100
     )
-    return response
+
+    # Itera a través del generador "response" y accede a los elementos necesarios
+    collected = []
+    for chunk in response:
+        chunk_message = chunk["choices"][0]["delta"]
+        collected.append(chunk_message)
+    content = ''.join([m.get('content', '') for m in collected])
+
+    return content
+
