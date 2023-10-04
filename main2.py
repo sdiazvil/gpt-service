@@ -1,10 +1,14 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import StreamingResponse
+import openai
+import asyncio
 from pydantic import BaseModel
 import openai
 import os
 from dotenv import load_dotenv
+import json
 
 app = FastAPI()
 
@@ -27,27 +31,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class CompletionRequest(BaseModel):
-    prompt: str
 
-@app.post("/completions")
-async def completions(request: CompletionRequest):
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        # model="gpt-4",
-        messages=[
-            {"role": "user", "content": request.prompt},
-        ],
-        stream=True,
-        max_tokens = 100
-    )
+@app.websocket("/completions")
+async def completions(websocket: WebSocket):
+    await websocket.accept()
 
-    # Itera a través del generador "response" y accede a los elementos necesarios
-    collected = []
-    for chunk in response:
-        chunk_message = chunk["choices"][0]["delta"]
-        collected.append(chunk_message)
-    content = ''.join([m.get('content', '') for m in collected])
+    try:
+        while True:
+            data = await websocket.receive_text()
 
-    return content
+            # Utiliza OpenAI para obtener una respuesta
+            prompt = data  # El mensaje del cliente podría servir como el prompt para OpenAI
+            response_generator = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                # prompt=prompt,
+                messages=[
+                    {"role": "user", "content": prompt},
+                ],
+                stream=True,
+                #max_tokens=200
+            )
 
+            for response in response_generator:
+                # assistant_response = response["choices"][0]["delta"]["content"]
+                if response["choices"][0]['finish_reason']=='stop':
+                    print('cadena finalizada')
+                else :
+                    assistant_response = response['choices'][0]['delta']['content']
+
+                    data = {"message": assistant_response}
+
+                    json_data = json.dumps(data)
+                    # Envía la palabra al cliente a través de WebSocket
+                    await websocket.send_text(json_data)
+                
+
+    except WebSocketDisconnect:
+        pass
