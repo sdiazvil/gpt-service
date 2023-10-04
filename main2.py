@@ -49,7 +49,7 @@ async def completions(websocket: WebSocket):
                     {"role": "user", "content": prompt},
                 ],
                 stream=True,
-                max_tokens=200
+                #max_tokens=200
             )
 
             for response in response_generator:
