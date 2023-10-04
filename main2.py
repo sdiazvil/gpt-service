@@ -32,39 +32,6 @@ app.add_middleware(
 )
 
 
-class CompletionRequest(BaseModel):
-    prompt: str
-
-# @app.post("/completions")
-# async def completions(request: CompletionRequest):
-#     response = openai.ChatCompletion.create(
-#         model="gpt-3.5-turbo",
-#         # model="gpt-4",
-#         messages=[
-#             {"role": "user", "content": request.prompt},
-#         ],
-#         stream=True,
-#         max_tokens = 100
-#     )
-#     return response
-
-    # return response["choices"][0]["delta"]["content"]
-
-    # # Itera a través del generador "response" y accede a los elementos necesarios
-    # collected = []
-    # for chunk in response:
-    #     chunk_message = chunk["choices"][0]["delta"]
-    #     collected.append(chunk_message)
-    # content = ''.join([m.get('content', '') for m in collected])
-
-    # return content
-
-
-async def generate_messages(data: dict, websocket: WebSocket):
-    # Envía la respuesta como JSON a través de WebSocket
-    await websocket.send_json(data)
-
-
 @app.websocket("/completions")
 async def completions(websocket: WebSocket):
     await websocket.accept()
@@ -75,26 +42,22 @@ async def completions(websocket: WebSocket):
 
             # Utiliza OpenAI para obtener una respuesta
             prompt = data  # El mensaje del cliente podría servir como el prompt para OpenAI
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "Eres un experto cuenta cuentos"},
-                    {"role": "user", "content": prompt},
-                ],
+            response_generator = openai.Completion.create(
+                model="text-davinci-003",
+                prompt=prompt,
+                stream=True,
                 max_tokens=100
             )
 
-            # Extrae el contenido de la respuesta de OpenAI
-            assistant_response = response.choices[0].message["content"]
+            for response in response_generator:
+                assistant_response = response.choices[0].text
 
-            data = {"message": assistant_response}
+                data = {"message": assistant_response}
 
-            json_data = json.dumps(data)
-            # Envía la respuesta al cliente a través de WebSocket
-            await websocket.send_text(json_data)
+                json_data = json.dumps(data)
+                # Envía la palabra al cliente a través de WebSocket
+                await websocket.send_text(json_data)
 
     except WebSocketDisconnect:
         pass
- 
-
-
+    
