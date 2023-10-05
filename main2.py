@@ -1,7 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
-import openai
 import openai
 import os
 from dotenv import load_dotenv
@@ -13,6 +11,10 @@ load_dotenv()
 
 # Configuración de OpenAI
 openai.api_key = os.getenv("API_KEY")
+# openai.api_type = "azure"
+# openai.api_key = os.getenv("AZURE_API_KEY")
+# openai.api_base = os.getenv("AZURE_ENDPOINT")
+# openai.api_version = os.getenv("AZURE_API_VERSION")
 
 # Configuración de CORS
 origins = [
@@ -39,6 +41,7 @@ async def completions(websocket: WebSocket):
             # Utiliza OpenAI para obtener una respuesta
             prompt = data  # El mensaje del cliente podría servir como el prompt para OpenAI
             response_generator = openai.ChatCompletion.create(
+                # deployment_id="chatbot-allocation-argentina",
                 model="gpt-3.5-turbo",
                 # prompt=prompt,
                 messages=[
