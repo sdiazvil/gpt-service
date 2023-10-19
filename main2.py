@@ -3,17 +3,26 @@ from fastapi.middleware.cors import CORSMiddleware
 import openai
 from dotenv import dotenv_values
 import json
+import os
+
+from langchain.llms import AzureOpenAI
+from langchain.chains import ConversationChain
+from langchain.memory import ConversationBufferMemory
 
 app = FastAPI()
 
 config = dotenv_values(".env")
 
 # Configuración de OpenAI
-# openai.api_key = config["API_KEY"]
-openai.api_type = "azure"
-openai.api_key = config["AZURE_API_KEY"]
-openai.api_base = config["AZURE_ENDPOINT"]
-openai.api_version = config["AZURE_API_VERSION"]
+# openai.api_type = "azure"
+# openai.api_key = config["AZURE_API_KEY"]
+# openai.api_base = config["AZURE_ENDPOINT"]
+# openai.api_version = config["AZURE_API_VERSION"]
+#os.environ["OPENAI_API_KEY"] = config["API_KEY"]
+os.environ["OPENAI_API_TYPE"] = "azure"
+os.environ["OPENAI_API_VERSION"] = config["AZURE_API_VERSION"]
+os.environ["OPENAI_API_BASE"] = config["AZURE_ENDPOINT"]
+os.environ["OPENAI_API_KEY"] = config["AZURE_API_VERSION"]
 
 # Configuración de CORS
 origins = [
@@ -29,48 +38,55 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.websocket("/completions")
-async def completions(websocket: WebSocket):
-    await websocket.accept()
+llm = AzureOpenAI(
+    deployment_name="chatbot-allocation-argentina",
+    model_name="text-davinci-002",
+)
 
-    try:
-        while True:
-            data = await websocket.receive_text()
+llm("Tell me a joke")
 
-            # Utiliza OpenAI para obtener una respuesta
-            prompt = data  # El mensaje del cliente podría servir como el prompt para OpenAI
-            response_generator = openai.ChatCompletion.create(
-                deployment_id="chatbot-allocation-argentina",
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "user", "content": prompt},
-                ],
-                # messages=[
-                #     {"role": "system", "content": "Eres un experto cuenta cuentos"},
-                #     {"role": "user", "content": prompt},
-                # ],
-                stream=True,
-                # max_tokens=200
-            )
+# @app.websocket("/completions")
+# async def completions(websocket: WebSocket):
+#     await websocket.accept()
 
-            # Inicializa una variable de control
-            first_iteration = True
+#     try:
+#         while True:
+#             data = await websocket.receive_text()
 
-            for response in response_generator:
-                if first_iteration:
-                    first_iteration = False
-                    continue  # Salta la primera iteración
+#             # Utiliza OpenAI para obtener una respuesta
+#             prompt = data  # El mensaje del cliente podría servir como el prompt para OpenAI
+#             response_generator = openai.ChatCompletion.create(
+#                 deployment_id="chatbot-allocation-argentina",
+#                 model="gpt-3.5-turbo",
+#                 messages=[
+#                     {"role": "user", "content": prompt},
+#                 ],
+#                 # messages=[
+#                 #     {"role": "system", "content": "Eres un experto cuenta cuentos"},
+#                 #     {"role": "user", "content": prompt},
+#                 # ],
+#                 stream=True,
+#                 # max_tokens=200
+#             )
 
-                if response["choices"][0]['finish_reason']=='stop':
-                    print('cadena finalizada')
-                else :
-                    assistant_response = response['choices'][0]['delta']['content']
+#             # Inicializa una variable de control
+#             first_iteration = True
 
-                    data = {"message": assistant_response}
+#             for response in response_generator:
+#                 if first_iteration:
+#                     first_iteration = False
+#                     continue  # Salta la primera iteración
 
-                    json_data = json.dumps(data)
-                    # Envía la palabra al cliente a través de WebSocket
-                    await websocket.send_text(json_data)
+#                 if response["choices"][0]['finish_reason']=='stop':
+#                     print('cadena finalizada')
+#                 else :
+#                     assistant_response = response['choices'][0]['delta']['content']
 
-    except WebSocketDisconnect:
-        pass
+#                     data = {"message": assistant_response}
+
+#                     json_data = json.dumps(data)
+#                     # Envía la palabra al cliente a través de WebSocket
+#                     await websocket.send_text(json_data)
+
+#     except WebSocketDisconnect:
+#         pass
