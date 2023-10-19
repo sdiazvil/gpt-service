@@ -1,20 +1,19 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import openai
-import os
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 import json
 
 app = FastAPI()
 
-load_dotenv()
+config = dotenv_values(".env")
 
 # Configuración de OpenAI
-openai.api_key = os.getenv("API_KEY")
-# openai.api_type = "azure"
-# openai.api_key = os.getenv("AZURE_API_KEY")
-# openai.api_base = os.getenv("AZURE_ENDPOINT")
-# openai.api_version = os.getenv("AZURE_API_VERSION")
+# openai.api_key = config["API_KEY"]
+openai.api_type = "azure"
+openai.api_key = config["AZURE_API_KEY"]
+openai.api_base = config["AZURE_ENDPOINT"]
+openai.api_version = config["AZURE_API_VERSION"]
 
 # Configuración de CORS
 origins = [
@@ -41,17 +40,27 @@ async def completions(websocket: WebSocket):
             # Utiliza OpenAI para obtener una respuesta
             prompt = data  # El mensaje del cliente podría servir como el prompt para OpenAI
             response_generator = openai.ChatCompletion.create(
-                # deployment_id="chatbot-allocation-argentina",
+                deployment_id="chatbot-allocation-argentina",
                 model="gpt-3.5-turbo",
-                # prompt=prompt,
                 messages=[
                     {"role": "user", "content": prompt},
                 ],
+                # messages=[
+                #     {"role": "system", "content": "Eres un experto cuenta cuentos"},
+                #     {"role": "user", "content": prompt},
+                # ],
                 stream=True,
-                #max_tokens=200
+                # max_tokens=200
             )
 
+            # Inicializa una variable de control
+            first_iteration = True
+
             for response in response_generator:
+                if first_iteration:
+                    first_iteration = False
+                    continue  # Salta la primera iteración
+
                 if response["choices"][0]['finish_reason']=='stop':
                     print('cadena finalizada')
                 else :
@@ -62,7 +71,6 @@ async def completions(websocket: WebSocket):
                     json_data = json.dumps(data)
                     # Envía la palabra al cliente a través de WebSocket
                     await websocket.send_text(json_data)
-                
 
     except WebSocketDisconnect:
         pass
