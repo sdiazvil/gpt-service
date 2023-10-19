@@ -1,16 +1,15 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import openai
-import os
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 import json
 
 app = FastAPI()
 
-load_dotenv()
+config = dotenv_values(".env")
 
 # Configuración de OpenAI
-openai.api_key = os.getenv("API_KEY")
+openai.api_key = config["API_KEY"]
 
 # Configuración de CORS
 origins = [
