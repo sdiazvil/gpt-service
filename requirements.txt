@@ -1,0 +1,6 @@
+fastapi
+langchain
+openai==0.28
+pydantic
+uvicorn[standard]
+python-dotenv

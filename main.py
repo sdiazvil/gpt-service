@@ -1,17 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi import FastAPI
 import openai
-import os
-from dotenv import load_dotenv
+from dotenv import dotenv_values
+import json
 
 app = FastAPI()
 
-load_dotenv()
+config = dotenv_values(".env")
 
 # Configuración de OpenAI
-openai.api_key = os.getenv("API_KEY")
-print(openai.api_key)
+openai.api_key = config["API_KEY"]
 
 # Configuración de CORS
 origins = [
@@ -27,33 +26,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Modelo de datos para recibir la petición
+@app.websocket("/completions")
+async def completions(websocket: WebSocket):
+    await websocket.accept()
 
+    try:
+        while True:
+            data = await websocket.receive_text()
 
-class CompletionRequest(BaseModel):
-    prompt: str
+            # Utiliza OpenAI para obtener una respuesta
+            prompt = data  # El mensaje del cliente podría servir como el prompt para OpenAI
+            response_generator = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                # prompt=prompt,
+                messages=[
+                    {"role": "user", "content": prompt},
+                ],
+                stream=True,
+                #max_tokens=200
+            )
 
-# Ruta para la petición de completions
+            for response in response_generator:
+                if response["choices"][0]['finish_reason']=='stop':
+                    print('cadena finalizada')
+                else :
+                    assistant_response = response['choices'][0]['delta']['content']
 
+                    data = {"message": assistant_response}
 
-# @app.post("/completions")
-# async def completions(request: CompletionRequest):
-#     response = openai.Completion.create(
-#         engine="text-davinci-003",
-#         prompt=request.prompt,
-#         max_tokens=256
-#     )
-#     return response.choices[0].text
+                    json_data = json.dumps(data)
+                    # Envía la palabra al cliente a través de WebSocket
+                    await websocket.send_text(json_data)
+                
 
-
-@app.post("/completions")
-async def completions(request: CompletionRequest):
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        #model="gpt-4",
-        messages=[
-            {"role": "user", "content": request.prompt},
-        ]
-    )
-    return response['choices'][0]['message']['content']
+    except WebSocketDisconnect:
+        pass
 
